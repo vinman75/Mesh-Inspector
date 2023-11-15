@@ -269,7 +269,6 @@ class OpenGLWidget(QOpenGLWidget):
 
         self.focus_model()
 
-
     def keyPressEvent(self, event):
         self.setFocus()  # Set focus to the widget.
 
