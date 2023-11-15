@@ -3,6 +3,7 @@
 
 import numpy as np
 from PyQt5.QtWidgets import QOpenGLWidget
+from PyQt5.QtGui import QSurfaceFormat
 from PyQt5.QtCore import Qt
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -35,8 +36,12 @@ class OpenGLWidget(QOpenGLWidget):
         self.wireframe_vbo_tris = None
         self.wireframe_vbo_quads = None
         self.wireframe_vbo_ngons = None
+        format = QSurfaceFormat()
+        format.setSamples(4)  # Set the number of samples for multisampling
+        self.setFormat(format)  # Apply the format with multisampling
 
     def initializeGL(self):
+        glEnable(GL_MULTISAMPLE)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
@@ -183,8 +188,12 @@ class OpenGLWidget(QOpenGLWidget):
         # Draw wireframe over the model if wireframe mode is on
         if self.wireframe_mode:
             glDisable(GL_LIGHTING)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             glLineWidth(self.wireframe_thickness)
-            glColor4f(0.0, 0.0, 0.0, 1.0)  # Set wireframe color
+            glDepthFunc(GL_LEQUAL)
+
+            # Set wireframe color to black
+            glColor3f(0.0, 0.0, 0.0)
 
             # Check and render wireframe VBOs if they exist
             if self.wireframe_vbo_quads is not None:
@@ -203,6 +212,8 @@ class OpenGLWidget(QOpenGLWidget):
                 glDisableClientState(GL_VERTEX_ARRAY)
                 self.wireframe_vbo_tris.unbind()
 
+            glDepthFunc(GL_LESS)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
             glEnable(GL_LIGHTING)
 
     def focus_model(self):
