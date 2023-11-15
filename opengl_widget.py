@@ -9,6 +9,8 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.arrays import vbo
+import time
+
 
 def check_gl_error():
     err = glGetError()
@@ -28,7 +30,7 @@ class OpenGLWidget(QOpenGLWidget):
         self.camera_pos = [0.0, 0.0, 5.0]  # Initial camera position [x, y, z]
         self.camera_front = [0.0, 0.0, -1.0]  # The direction that the camera is facing
         self.camera_up = [0.0, 1.0, 0.0]  # The 'up' direction for the camera
-        self.bg_color = [0.5, 0.5, 0.5, 1.0]
+        self.bg_color = [0.273, 0.273, 0.273, 1.0]
         self.near_clip = 0.1  # Define the near clip plane distance here
         self.far_clip = 500.0  # Initialize the far clip attribute here
         self.wireframe_mode = False  # Add this line
@@ -39,6 +41,9 @@ class OpenGLWidget(QOpenGLWidget):
         format = QSurfaceFormat()
         format.setSamples(4)  # Set the number of samples for multisampling
         self.setFormat(format)  # Apply the format with multisampling
+        self.last_frame_time = time.time()
+        self.frame_count = 0
+        self.fps = 0.0
 
 
     def initializeGL(self):
@@ -51,6 +56,9 @@ class OpenGLWidget(QOpenGLWidget):
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glLightfv(GL_LIGHT0, GL_POSITION, [0, 0, 1, 0])  # Simple directional light
+
+    def get_fps(self):
+        return self.fps
 
     def set_wireframe_mode(self, enabled):
         self.wireframe_mode = enabled
@@ -217,6 +225,15 @@ class OpenGLWidget(QOpenGLWidget):
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
             glEnable(GL_LIGHTING)
 
+        # Calculate FPS
+        current_time = time.time()
+        self.frame_count += 1
+        if current_time - self.last_frame_time >= 1.0:
+            self.fps = self.frame_count / (current_time - self.last_frame_time)
+            self.frame_count = 0
+            self.last_frame_time = current_time
+
+
     def focus_model(self):
         if len(self.vertex_coords) == 0:
             return
@@ -292,7 +309,6 @@ class OpenGLWidget(QOpenGLWidget):
         self.face_count = len(self.tris) + len(self.quads) + len(self.ngons)
 
         self.focus_model()
-
 
     def keyPressEvent(self, event):
         self.setFocus()  # Set focus to the widget.

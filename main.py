@@ -3,7 +3,7 @@
 
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QSlider, QDockWidget, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QDoubleSpinBox, QCheckBox, QGroupBox
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from opengl_widget import OpenGLWidget
 from apply_dark_theme import apply_dark_theme
 from PyQt5.QtGui import QFont
@@ -12,16 +12,36 @@ from PyQt5.QtGui import QFont
 class SimpleObjViewer(QMainWindow):
     def __init__(self):
         super(SimpleObjViewer, self).__init__()
-        self.setWindowTitle("Vince's 3D Viewer")
+        self.setWindowTitle("Poly Peep v0.1") 
         self.near_clip = 0.1
         self.far_clip = 100.0
         self.init_gui()
         self.obj_file = None
+        self.init_fps_display()
+        
 
+    def init_fps_display(self):
+        self.fps_label = QLabel("FPS: 0")
+        self.fps_label.setFont(QFont("Arial", 10))
+        self.fps_label.setStyleSheet("color: lightblue;")
+        self.hud_layout.addWidget(self.fps_label)
+
+        # Update FPS every second
+        self.fps_timer = QTimer(self)
+        self.fps_timer.timeout.connect(self.update_fps)
+        self.fps_timer.start(1000)
+
+    def update_fps(self):
+        fps = self.opengl_widget.get_fps()
+        self.fps_label.setText(f"FPS: {fps:.2f}")
+
+    
     def change_background_shade(self, value):
-        shade = value / 255.0
+        # Convert the slider value to a shade in the range [0, 0.25]
+        shade = value * 0.02  # 0.25 / 50
         self.opengl_widget.bg_color = [shade, shade, shade, 1.0]
         self.opengl_widget.update()
+
         
     def change_near_clip(self, value: float):
         self.opengl_widget.change_near_clip(value)
@@ -40,11 +60,10 @@ class SimpleObjViewer(QMainWindow):
             self.hud_widget.setVisible(state)
             self.hud_visibility_checkbox.setChecked(state)
 
-
     def init_gui(self):
         self.opengl_widget = OpenGLWidget(self)
         self.setCentralWidget(self.opengl_widget)
-        self.resize(800, 600)
+        self.resize(1280, 720)
         self.create_menu_bar()
         self.create_dock_widgets()
         self.init_hud()
@@ -67,7 +86,6 @@ class SimpleObjViewer(QMainWindow):
             self.update_hud(self.opengl_widget.vertex_count, 
                 self.opengl_widget.edge_count, 
                 self.opengl_widget.face_count)
-
 
     def init_hud(self):
         self.hud_widget = QWidget(self.opengl_widget)
@@ -99,7 +117,6 @@ class SimpleObjViewer(QMainWindow):
         self.edges_count_label.setText(f"Edges: {edges}")
         self.faces_count_label.setText(f"Faces: {faces}")
 
-
     def create_dock_widgets(self):
         # Creating a dock widget
         dock = QDockWidget("Controls", self)
@@ -116,8 +133,8 @@ class SimpleObjViewer(QMainWindow):
         bg_label = QLabel("Background Color")
         bg_slider = QSlider(Qt.Horizontal)
         bg_slider.setMinimum(0)
-        bg_slider.setMaximum(255)
-        bg_slider.setValue(128)
+        bg_slider.setMaximum(20)
+        bg_slider.setValue(10)
         bg_slider.valueChanged.connect(self.change_background_shade)
         viewport_layout.addWidget(bg_label)
         viewport_layout.addWidget(bg_slider)
@@ -180,7 +197,6 @@ class SimpleObjViewer(QMainWindow):
         controls_widget.setLayout(layout)
         dock.setWidget(controls_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
