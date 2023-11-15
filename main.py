@@ -3,7 +3,7 @@
 
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QSlider, QDockWidget, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QDoubleSpinBox, QCheckBox, QGroupBox
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
 from opengl_widget import OpenGLWidget
 from apply_dark_theme import apply_dark_theme
 from PyQt5.QtGui import QFont
@@ -17,24 +17,10 @@ class SimpleObjViewer(QMainWindow):
         self.far_clip = 100.0
         self.init_gui()
         self.obj_file = None
-        self.init_fps_display()
-        
 
-    def init_fps_display(self):
-        self.fps_label = QLabel("FPS: 0")
-        self.fps_label.setFont(QFont("Arial", 10))
-        self.fps_label.setStyleSheet("color: lightblue;")
-        self.hud_layout.addWidget(self.fps_label)
-
-        # Update FPS every second
-        self.fps_timer = QTimer(self)
-        self.fps_timer.timeout.connect(self.update_fps)
-        self.fps_timer.start(1000)
-
-    def update_fps(self):
-        fps = self.opengl_widget.get_fps()
+    def update_fps(self, fps):
         self.fps_label.setText(f"FPS: {fps:.2f}")
-
+        
     
     def change_background_shade(self, value):
         # Convert the slider value to a shade in the range [0, 0.25]
@@ -62,6 +48,7 @@ class SimpleObjViewer(QMainWindow):
 
     def init_gui(self):
         self.opengl_widget = OpenGLWidget(self)
+        self.opengl_widget.fps_updated.connect(self.update_fps)
         self.setCentralWidget(self.opengl_widget)
         self.resize(1280, 720)
         self.create_menu_bar()
@@ -89,14 +76,20 @@ class SimpleObjViewer(QMainWindow):
 
     def init_hud(self):
         self.hud_widget = QWidget(self.opengl_widget)
-        self.hud_widget.setFixedSize(200, 100)  # Adjust size as needed
+        self.hud_widget.setFixedSize(200, 150)  # Increase the height as needed
         self.hud_widget.move(0, 0)  # Position it on the top-left
         self.hud_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.hud_widget.setStyleSheet("background: transparent;")
 
         self.hud_layout = QVBoxLayout(self.hud_widget)
         self.hud_layout.setAlignment(Qt.AlignTop)
-        
+
+        # Header for Counts
+        counts_header = QLabel("Counts")
+        counts_header.setFont(QFont("Arial", 10, QFont.Bold))
+        counts_header.setStyleSheet("color: yellow;")
+        self.hud_layout.addWidget(counts_header)
+
         self.vertex_count_label = QLabel("Verts: 0")
         self.vertex_count_label.setFont(QFont("Arial", 10))
         self.vertex_count_label.setStyleSheet("color: white;")
@@ -111,6 +104,22 @@ class SimpleObjViewer(QMainWindow):
         self.faces_count_label.setFont(QFont("Arial", 10))
         self.faces_count_label.setStyleSheet("color: white;")
         self.hud_layout.addWidget(self.faces_count_label)
+
+        # Separator
+        separator = QLabel(" ")
+        self.hud_layout.addWidget(separator)
+
+        # Header for Performance
+        performance_header = QLabel("Performance")
+        performance_header.setFont(QFont("Arial", 10, QFont.Bold))
+        performance_header.setStyleSheet("color: yellow;")
+        self.hud_layout.addWidget(performance_header)
+
+        # Create the FPS label
+        self.fps_label = QLabel("FPS: 0")
+        self.fps_label.setFont(QFont("Arial", 10))
+        self.fps_label.setStyleSheet("color: lightblue;")
+        self.hud_layout.addWidget(self.fps_label)
 
     def update_hud(self, verts, edges, faces):
         self.vertex_count_label.setText(f"Verts: {verts}")

@@ -4,7 +4,7 @@
 import numpy as np
 from PyQt5.QtWidgets import QOpenGLWidget
 from PyQt5.QtGui import QSurfaceFormat
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal,  QTimer  
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
@@ -18,6 +18,8 @@ def check_gl_error():
         print('GL error: %s' % gluErrorString(err))
 
 class OpenGLWidget(QOpenGLWidget):
+    fps_updated = pyqtSignal(float)  # This will emit the FPS value
+
     def __init__(self, parent=None):
         super(OpenGLWidget, self).__init__(parent)
         self.pan_x = 0
@@ -41,10 +43,24 @@ class OpenGLWidget(QOpenGLWidget):
         format = QSurfaceFormat()
         format.setSamples(4)  # Set the number of samples for multisampling
         self.setFormat(format)  # Apply the format with multisampling
-        self.last_frame_time = time.time()
+        self.last_frame_time = 0
         self.frame_count = 0
         self.fps = 0.0
+        self.redraw_timer = QTimer(self)
+        self.redraw_timer.timeout.connect(self.trigger_update)
+        self.redraw_timer.start(16)  # about 60 times per second
 
+
+    def trigger_update(self):
+        # Calculate FPS
+        current_time = time.time()
+        self.frame_count += 1
+        time_difference = current_time - self.last_frame_time
+        if time_difference >= 1.0:
+            self.fps = self.frame_count / time_difference
+            self.frame_count = 0
+            self.last_frame_time = current_time
+            self.fps_updated.emit(self.fps)  # Emit the signal to update the FPS
 
     def initializeGL(self):
         glEnable(GL_MULTISAMPLE)
@@ -57,8 +73,6 @@ class OpenGLWidget(QOpenGLWidget):
         glEnable(GL_LIGHT0)
         glLightfv(GL_LIGHT0, GL_POSITION, [0, 0, 1, 0])  # Simple directional light
 
-    def get_fps(self):
-        return self.fps
 
     def set_wireframe_mode(self, enabled):
         self.wireframe_mode = enabled
@@ -221,17 +235,10 @@ class OpenGLWidget(QOpenGLWidget):
                 glDisableClientState(GL_VERTEX_ARRAY)
                 self.wireframe_vbo_tris.unbind()
 
+
             glDepthFunc(GL_LESS)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
             glEnable(GL_LIGHTING)
-
-        # Calculate FPS
-        current_time = time.time()
-        self.frame_count += 1
-        if current_time - self.last_frame_time >= 1.0:
-            self.fps = self.frame_count / (current_time - self.last_frame_time)
-            self.frame_count = 0
-            self.last_frame_time = current_time
 
 
     def focus_model(self):
@@ -315,7 +322,7 @@ class OpenGLWidget(QOpenGLWidget):
 
         if event.key() == Qt.Key_F:
             self.focus_model()
-        elif event.key() == Qt.Key_W:
+        elif event.key() == Qt.Key_4 or event.key() == Qt.Key_W:
             self.wireframe_mode = not self.wireframe_mode
             self.parent().wireframe_checkbox.setChecked(self.wireframe_mode)
             self.update()
