@@ -37,7 +37,9 @@ class SimpleObjViewer(QMainWindow):
 
     def toggle_hud_visibility(self, state):
         if hasattr(self, 'hud_widget'):
-            self.hud_widget.setVisible(state == Qt.Checked)
+            self.hud_widget.setVisible(state)
+            self.hud_visibility_checkbox.setChecked(state)
+
 
     def init_gui(self):
         self.opengl_widget = OpenGLWidget(self)
@@ -178,7 +180,6 @@ class SimpleObjViewer(QMainWindow):
         controls_widget.setLayout(layout)
         dock.setWidget(controls_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
-
 
 
 if __name__ == "__main__":

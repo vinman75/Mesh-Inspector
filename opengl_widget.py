@@ -304,8 +304,10 @@ class OpenGLWidget(QOpenGLWidget):
             self.parent().wireframe_checkbox.setChecked(self.wireframe_mode)
             self.update()
 
-        if event.key() == Qt.Key_H:
-            self.parent().toggle_hud_visibility(not self.parent().hud_visibility_checkbox.isChecked())
+        elif event.key() == Qt.Key_H:
+            # Toggle the HUD visibility and the state of the checkbox in the GUI
+            current_state = self.parent().hud_visibility_checkbox.isChecked()
+            self.parent().toggle_hud_visibility(not current_state)
         else:
             # Handle other key events
             if event.key() == Qt.Key_Left:
