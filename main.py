@@ -6,13 +6,14 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QSlider, QDo
 from PyQt5.QtCore import Qt
 from opengl_widget import OpenGLWidget
 from apply_dark_theme import apply_dark_theme
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont,  QIcon
 
 
 class SimpleObjViewer(QMainWindow):
     def __init__(self):
         super(SimpleObjViewer, self).__init__()
-        self.setWindowTitle("Poly Peep v0.1") 
+        self.setWindowTitle("Mesh Inspector")
+        self.setWindowIcon(QIcon('graphics/icon.png'))  
         self.near_clip = 0.1
         self.far_clip = 100.0
         self.init_gui()

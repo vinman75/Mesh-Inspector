@@ -235,7 +235,6 @@ class OpenGLWidget(QOpenGLWidget):
                 glDisableClientState(GL_VERTEX_ARRAY)
                 self.wireframe_vbo_tris.unbind()
 
-
             glDepthFunc(GL_LESS)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
             glEnable(GL_LIGHTING)
