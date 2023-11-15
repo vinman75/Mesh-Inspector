@@ -2,10 +2,12 @@
 # Responsible for initializing and running the main application window, managing user interactions, and orchestrating the overall functionality of the 3D viewer.
 
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QSlider, QDockWidget, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QDoubleSpinBox, QCheckBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QSlider, QDockWidget, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QDoubleSpinBox, QCheckBox, QGroupBox
 from PyQt5.QtCore import Qt
 from opengl_widget import OpenGLWidget
 from apply_dark_theme import apply_dark_theme
+from PyQt5.QtGui import QFont
+
 
 class SimpleObjViewer(QMainWindow):
     def __init__(self):
@@ -33,12 +35,22 @@ class SimpleObjViewer(QMainWindow):
     def change_wireframe_thickness(self, value):
         self.opengl_widget.set_wireframe_thickness(value)
 
+    def toggle_hud_visibility(self, state):
+        if hasattr(self, 'hud_widget'):
+            self.hud_widget.setVisible(state == Qt.Checked)
+
     def init_gui(self):
         self.opengl_widget = OpenGLWidget(self)
         self.setCentralWidget(self.opengl_widget)
         self.resize(800, 600)
         self.create_menu_bar()
         self.create_dock_widgets()
+        self.init_hud()
+
+    def resizeEvent(self, event):
+        super(SimpleObjViewer, self).resizeEvent(event)
+        if hasattr(self, 'hud_widget'):
+            self.hud_widget.move(0, 0)  # Move it to the top-left corner
 
     def create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -50,6 +62,41 @@ class SimpleObjViewer(QMainWindow):
         self.obj_file, _ = QFileDialog.getOpenFileName(self, "Open OBJ File", "", "OBJ Files (*.obj)")
         if self.obj_file:
             self.opengl_widget.load_model(self.obj_file)
+            self.update_hud(self.opengl_widget.vertex_count, 
+                self.opengl_widget.edge_count, 
+                self.opengl_widget.face_count)
+
+
+    def init_hud(self):
+        self.hud_widget = QWidget(self.opengl_widget)
+        self.hud_widget.setFixedSize(200, 100)  # Adjust size as needed
+        self.hud_widget.move(0, 0)  # Position it on the top-left
+        self.hud_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.hud_widget.setStyleSheet("background: transparent;")
+
+        self.hud_layout = QVBoxLayout(self.hud_widget)
+        self.hud_layout.setAlignment(Qt.AlignTop)
+        
+        self.vertex_count_label = QLabel("Verts: 0")
+        self.vertex_count_label.setFont(QFont("Arial", 10))
+        self.vertex_count_label.setStyleSheet("color: white;")
+        self.hud_layout.addWidget(self.vertex_count_label)
+
+        self.edges_count_label = QLabel("Edges: 0")
+        self.edges_count_label.setFont(QFont("Arial", 10))
+        self.edges_count_label.setStyleSheet("color: white;")
+        self.hud_layout.addWidget(self.edges_count_label)
+
+        self.faces_count_label = QLabel("Faces: 0")
+        self.faces_count_label.setFont(QFont("Arial", 10))
+        self.faces_count_label.setStyleSheet("color: white;")
+        self.hud_layout.addWidget(self.faces_count_label)
+
+    def update_hud(self, verts, edges, faces):
+        self.vertex_count_label.setText(f"Verts: {verts}")
+        self.edges_count_label.setText(f"Edges: {edges}")
+        self.faces_count_label.setText(f"Faces: {faces}")
+
 
     def create_dock_widgets(self):
         # Creating a dock widget
@@ -60,65 +107,79 @@ class SimpleObjViewer(QMainWindow):
         controls_widget = QWidget()
         layout = QVBoxLayout()
 
-        # Creating a horizontal layout for the background color control
-        bg_layout = QHBoxLayout()
+        # Viewport Controls
+        viewport_group_box = QGroupBox("Viewport Controls")
+        viewport_layout = QVBoxLayout()
+
         bg_label = QLabel("Background Color")
         bg_slider = QSlider(Qt.Horizontal)
         bg_slider.setMinimum(0)
         bg_slider.setMaximum(255)
         bg_slider.setValue(128)
         bg_slider.valueChanged.connect(self.change_background_shade)
-        bg_layout.addWidget(bg_label)
-        bg_layout.addWidget(bg_slider)
-        layout.addLayout(bg_layout)
+        viewport_layout.addWidget(bg_label)
+        viewport_layout.addWidget(bg_slider)
 
-        # Creating a horizontal layout for the near clip control
-        near_clip_layout = QHBoxLayout()
         near_clip_label = QLabel("Near Clip Plane")
         near_clip_spinbox = QDoubleSpinBox()
         near_clip_spinbox.setRange(0.01, 10.0)
         near_clip_spinbox.setSingleStep(0.01)
         near_clip_spinbox.setValue(0.1)
         near_clip_spinbox.valueChanged.connect(self.change_near_clip)
-        near_clip_layout.addWidget(near_clip_label)
-        near_clip_layout.addWidget(near_clip_spinbox)
-        layout.addLayout(near_clip_layout)
+        viewport_layout.addWidget(near_clip_label)
+        viewport_layout.addWidget(near_clip_spinbox)
 
-        # Creating a horizontal layout for the far clip control
-        far_clip_layout = QHBoxLayout()
         far_clip_label = QLabel("Far Clip Plane")
         far_clip_spinbox = QDoubleSpinBox()
         far_clip_spinbox.setRange(10.0, 1000.0)
         far_clip_spinbox.setSingleStep(1.0)
         far_clip_spinbox.setValue(500.0)
         far_clip_spinbox.valueChanged.connect(self.change_far_clip)
-        far_clip_layout.addWidget(far_clip_label)
-        far_clip_layout.addWidget(far_clip_spinbox)
-        layout.addLayout(far_clip_layout)
+        viewport_layout.addWidget(far_clip_label)
+        viewport_layout.addWidget(far_clip_spinbox)
 
-        # Creating a checkbox for wireframe mode
+        viewport_group_box.setLayout(viewport_layout)
+        layout.addWidget(viewport_group_box)
+
+        # Geometry Controls
+        geometry_group_box = QGroupBox("Geometry Controls")
+        geometry_layout = QVBoxLayout()
+
         self.wireframe_checkbox = QCheckBox("Wireframe Mode")
         self.wireframe_checkbox.stateChanged.connect(self.toggle_wireframe_mode)
-        layout.addWidget(self.wireframe_checkbox)
+        geometry_layout.addWidget(self.wireframe_checkbox)
 
-        # Creating a slider for wireframe thickness
         wireframe_thickness_label = QLabel("Wireframe Thickness")
         self.wireframe_thickness_slider = QSlider(Qt.Horizontal)
         self.wireframe_thickness_slider.setMinimum(1)
-        self.wireframe_thickness_slider.setMaximum(10)  # Adjust max value as needed
-        self.wireframe_thickness_slider.setValue(1)  # Default thickness
+        self.wireframe_thickness_slider.setMaximum(10)
+        self.wireframe_thickness_slider.setValue(1)
         self.wireframe_thickness_slider.valueChanged.connect(self.change_wireframe_thickness)
-        
-        wireframe_thickness_layout = QHBoxLayout()
-        wireframe_thickness_layout.addWidget(wireframe_thickness_label)
-        wireframe_thickness_layout.addWidget(self.wireframe_thickness_slider)
-        layout.addLayout(wireframe_thickness_layout)
+        geometry_layout.addWidget(wireframe_thickness_label)
+        geometry_layout.addWidget(self.wireframe_thickness_slider)
+
+        geometry_group_box.setLayout(geometry_layout)
+        layout.addWidget(geometry_group_box)
+
+        # HUD Control
+        hud_group_box = QGroupBox("HUD Control")
+        hud_layout = QVBoxLayout()
+
+        self.hud_visibility_checkbox = QCheckBox("Show Poly Count")
+        self.hud_visibility_checkbox.setChecked(True)
+        self.hud_visibility_checkbox.stateChanged.connect(self.toggle_hud_visibility)
+        hud_layout.addWidget(self.hud_visibility_checkbox)
+
+        hud_group_box.setLayout(hud_layout)
+        layout.addWidget(hud_group_box)
 
         # Ensuring the layout expands from top to bottom
         layout.addStretch()
         controls_widget.setLayout(layout)
         dock.setWidget(controls_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -40,6 +40,7 @@ class OpenGLWidget(QOpenGLWidget):
         format.setSamples(4)  # Set the number of samples for multisampling
         self.setFormat(format)  # Apply the format with multisampling
 
+
     def initializeGL(self):
         glEnable(GL_MULTISAMPLE)
         glEnable(GL_DEPTH_TEST)
@@ -237,6 +238,7 @@ class OpenGLWidget(QOpenGLWidget):
         self.tris = []
         self.quads = []
         self.ngons = []
+        unique_edges = set()
 
         with open(file_path, 'r') as file:
             for line in file:
@@ -253,6 +255,13 @@ class OpenGLWidget(QOpenGLWidget):
                 if line.startswith('f '):
                     vertices = line.split()[1:]
                     face_vertex_indices = [list(map(int, v.split('/'))) for v in vertices]
+
+                    # Create edges and add to set for uniqueness
+                    for i in range(len(face_vertex_indices)):
+                        idx1 = face_vertex_indices[i][0] - 1
+                        idx2 = face_vertex_indices[(i + 1) % len(face_vertex_indices)][0] - 1
+                        edge = tuple(sorted((idx1, idx2)))
+                        unique_edges.add(edge)
 
                     if len(face_vertex_indices) == 3:  # Triangles
                         self.tris.append([idx[0] - 1 for idx in face_vertex_indices])
@@ -278,7 +287,12 @@ class OpenGLWidget(QOpenGLWidget):
         self.wireframe_vbo_quads = self.create_wireframe_vbo(self.quads)
         self.wireframe_vbo_ngons = self.create_wireframe_vbo(self.ngons)
 
+        self.vertex_count = len(self.vertex_coords)
+        self.edge_count = len(unique_edges)
+        self.face_count = len(self.tris) + len(self.quads) + len(self.ngons)
+
         self.focus_model()
+
 
     def keyPressEvent(self, event):
         self.setFocus()  # Set focus to the widget.
@@ -289,6 +303,9 @@ class OpenGLWidget(QOpenGLWidget):
             self.wireframe_mode = not self.wireframe_mode
             self.parent().wireframe_checkbox.setChecked(self.wireframe_mode)
             self.update()
+
+        if event.key() == Qt.Key_H:
+            self.parent().toggle_hud_visibility(not self.parent().hud_visibility_checkbox.isChecked())
         else:
             # Handle other key events
             if event.key() == Qt.Key_Left:
