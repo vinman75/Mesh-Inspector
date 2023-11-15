@@ -32,6 +32,9 @@ class OpenGLWidget(QOpenGLWidget):
         self.far_clip = 500.0  # Initialize the far clip attribute here
         self.wireframe_mode = False  # Add this line
         self.wireframe_thickness = 1.0  # Default thickness
+        self.wireframe_vbo_tris = None
+        self.wireframe_vbo_quads = None
+        self.wireframe_vbo_ngons = None
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
@@ -46,6 +49,16 @@ class OpenGLWidget(QOpenGLWidget):
     def set_wireframe_mode(self, enabled):
         self.wireframe_mode = enabled
         self.update()
+
+    def create_wireframe_vbo(self, faces):
+        wireframe_data = []
+        for face in faces:
+            for i in range(len(face)):
+                start_vertex = self.vertex_coords[face[i]]
+                end_vertex = self.vertex_coords[face[(i + 1) % len(face)]]
+                wireframe_data.extend(start_vertex)
+                wireframe_data.extend(end_vertex)
+        return vbo.VBO(np.array(wireframe_data, dtype=np.float32))
 
     def set_wireframe_thickness(self, thickness):
         self.wireframe_thickness = thickness
@@ -136,7 +149,7 @@ class OpenGLWidget(QOpenGLWidget):
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         aspect_ratio = self.width() / self.height() if self.height() > 0 else 1
-        gluPerspective(45 / self.zoom, aspect_ratio, self.near_clip, self.far_clip)  # Use the far_clip attribute
+        gluPerspective(45 / self.zoom, aspect_ratio, self.near_clip, self.far_clip)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
@@ -152,6 +165,7 @@ class OpenGLWidget(QOpenGLWidget):
         glRotatef(self.rotation_y, 0, 1, 0)
         glTranslatef(self.pan_x, self.pan_y, 0)
 
+        # Render the main model
         if self.vbo:
             self.vbo.bind()
             glEnableClientState(GL_VERTEX_ARRAY)
@@ -166,18 +180,30 @@ class OpenGLWidget(QOpenGLWidget):
             glDisableClientState(GL_NORMAL_ARRAY)
             self.vbo.unbind()
 
-        self.draw_model()
-
         # Draw wireframe over the model if wireframe mode is on
         if self.wireframe_mode:
-            
-            glLineWidth(self.wireframe_thickness)  # Set wireframe thickness
-            glPolygonMode(GL_FRONT, GL_LINE)  
-            glDisable(GL_LIGHTING)  # Disable lighting for wireframe
-            glColor4f(0.0, 0.0, 0.0, 1.0)  # Set wireframe color, e.g., black
-            self.draw_model()
-            glEnable(GL_LIGHTING)  # Re-enable lighting
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)  # Restore fill mode
+            glDisable(GL_LIGHTING)
+            glLineWidth(self.wireframe_thickness)
+            glColor4f(0.0, 0.0, 0.0, 1.0)  # Set wireframe color
+
+            # Check and render wireframe VBOs if they exist
+            if self.wireframe_vbo_quads is not None:
+                self.wireframe_vbo_quads.bind()
+                glEnableClientState(GL_VERTEX_ARRAY)
+                glVertexPointer(3, GL_FLOAT, 0, None)
+                glDrawArrays(GL_LINES, 0, len(self.wireframe_vbo_quads) // 3)
+                glDisableClientState(GL_VERTEX_ARRAY)
+                self.wireframe_vbo_quads.unbind()
+
+            if self.wireframe_vbo_tris is not None:
+                self.wireframe_vbo_tris.bind()
+                glEnableClientState(GL_VERTEX_ARRAY)
+                glVertexPointer(3, GL_FLOAT, 0, None)
+                glDrawArrays(GL_LINES, 0, len(self.wireframe_vbo_tris) // 3)
+                glDisableClientState(GL_VERTEX_ARRAY)
+                self.wireframe_vbo_tris.unbind()
+
+            glEnable(GL_LIGHTING)
 
     def focus_model(self):
         if len(self.vertex_coords) == 0:
@@ -197,7 +223,9 @@ class OpenGLWidget(QOpenGLWidget):
         self.vertex_coords = []
         normal_coords = []
         vertex_data = []
+        self.tris = []
         self.quads = []
+        self.ngons = []
 
         with open(file_path, 'r') as file:
             for line in file:
@@ -215,29 +243,32 @@ class OpenGLWidget(QOpenGLWidget):
                     vertices = line.split()[1:]
                     face_vertex_indices = [list(map(int, v.split('/'))) for v in vertices]
 
-                    # Check if the face is a quad
-                    if len(face_vertex_indices) == 4:
-                        # Store quad vertex indices for wireframe rendering
-                        quad = [idx[0] - 1 for idx in face_vertex_indices]
-                        self.quads.append(quad)
+                    if len(face_vertex_indices) == 3:  # Triangles
+                        self.tris.append([idx[0] - 1 for idx in face_vertex_indices])
+                    elif len(face_vertex_indices) == 4:  # Quads
+                        self.quads.append([idx[0] - 1 for idx in face_vertex_indices])
+                    else:  # Ngons (5 or more vertices)
+                        self.ngons.append([idx[0] - 1 for idx in face_vertex_indices])
 
-                    # Tessellate quads (and polygons) into triangles
                     for i in range(1, len(face_vertex_indices) - 1):
                         indices = [face_vertex_indices[0], face_vertex_indices[i], face_vertex_indices[i + 1]]
-                        
                         for idx in indices:
-                            # OBJ format uses 1-based indexing, so we need to subtract 1
                             vertex_index = idx[0] - 1
                             normal_index = idx[2] - 1 if len(idx) > 2 else vertex_index
-                            
                             vertex_data.extend(self.vertex_coords[vertex_index])
                             vertex_data.extend(normal_coords[normal_index])
 
-        # Flatten the vertex_data list and create a VBO
         vertex_data = np.array(vertex_data, dtype=np.float32)
         self.vbo = vbo.VBO(vertex_data)
         self.vbo.bind()
-        self.focus_model()  # Call the focus_model function to center the model
+
+        # Create VBOs for wireframes after vertices have been parsed
+        self.wireframe_vbo_tris = self.create_wireframe_vbo(self.tris)
+        self.wireframe_vbo_quads = self.create_wireframe_vbo(self.quads)
+        self.wireframe_vbo_ngons = self.create_wireframe_vbo(self.ngons)
+
+        self.focus_model()
+
 
     def keyPressEvent(self, event):
         self.setFocus()  # Set focus to the widget.
