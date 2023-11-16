@@ -263,8 +263,13 @@ class OpenGLWidget(QOpenGLWidget):
         self.ngons = []
         unique_edges = set()
 
+        # First pass to read vertex and normal coordinates
         with open(file_path, 'r') as file:
             for line in file:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue  # Skip comments and empty lines
+
                 if line.startswith('v '):
                     self.vertex_coords.append([float(val) for val in line.split()[1:4]])
                 elif line.startswith('vn '):
@@ -273,8 +278,18 @@ class OpenGLWidget(QOpenGLWidget):
         self.vertex_coords = np.array(self.vertex_coords, dtype=np.float32)
         normal_coords = np.array(normal_coords, dtype=np.float32)
 
+        # Check if normals are provided, if not generate them
+        generate_normals = len(normal_coords) == 0
+        if generate_normals:
+            normal_coords = np.zeros_like(self.vertex_coords)
+
+        # Second pass to read face data
         with open(file_path, 'r') as file:
             for line in file:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue  # Skip comments and empty lines
+
                 if line.startswith('f '):
                     vertices = line.split()[1:]
                     face_vertex_indices = [list(map(int, v.split('/'))) for v in vertices]
@@ -286,20 +301,36 @@ class OpenGLWidget(QOpenGLWidget):
                         edge = tuple(sorted((idx1, idx2)))
                         unique_edges.add(edge)
 
+                    face_indices = [idx[0] - 1 for idx in face_vertex_indices]
                     if len(face_vertex_indices) == 3:  # Triangles
-                        self.tris.append([idx[0] - 1 for idx in face_vertex_indices])
+                        self.tris.append(face_indices)
                     elif len(face_vertex_indices) == 4:  # Quads
-                        self.quads.append([idx[0] - 1 for idx in face_vertex_indices])
+                        self.quads.append(face_indices)
                     else:  # Ngons (5 or more vertices)
-                        self.ngons.append([idx[0] - 1 for idx in face_vertex_indices])
+                        self.ngons.append(face_indices)
+
+                    # Generate normals if needed
+                    if generate_normals:
+                        v0, v1, v2 = [self.vertex_coords[i] for i in face_indices[:3]]
+                        face_normal = np.cross(v1 - v0, v2 - v0)
+                        face_normal /= np.linalg.norm(face_normal)  # Normalize the normal
+                        for i in face_indices:
+                            normal_coords[i] += face_normal
 
                     for i in range(1, len(face_vertex_indices) - 1):
                         indices = [face_vertex_indices[0], face_vertex_indices[i], face_vertex_indices[i + 1]]
                         for idx in indices:
                             vertex_index = idx[0] - 1
-                            normal_index = idx[2] - 1 if len(idx) > 2 else vertex_index
-                            vertex_data.extend(self.vertex_coords[vertex_index])
-                            vertex_data.extend(normal_coords[normal_index])
+                            normal_index = idx[2] - 1 if len(idx) == 3 else vertex_index
+                            if vertex_index < len(self.vertex_coords) and (normal_index < len(normal_coords) or generate_normals):
+                                vertex_data.extend(self.vertex_coords[vertex_index])
+                                vertex_data.extend(normal_coords[normal_index])
+
+        # Normalize the generated normals
+        if generate_normals:
+            for i in range(len(normal_coords)):
+                normal_coords[i] /= np.linalg.norm(normal_coords[i])  # Normalize to length 1
+                normal_coords[i] *= 0.3  # Scale to 30% of original length
 
         vertex_data = np.array(vertex_data, dtype=np.float32)
         self.vbo = vbo.VBO(vertex_data)
@@ -342,3 +373,4 @@ class OpenGLWidget(QOpenGLWidget):
                 self.rotation_x += 5
 
         self.update()  # Ensure this is outside the else block
+        
