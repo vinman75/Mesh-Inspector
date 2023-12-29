@@ -1,17 +1,47 @@
-A Simple 3D Viewer can open OBJ models completely written in Python and use teh PyOpenGL library.
+# Simple 3D Viewer
 
-Navigation controls are based on Maya.
+Simple 3D Viewer is a Python application that allows you to open and view OBJ models. It uses the PyOpenGL library to render the models and provides a user-friendly interface for navigating the 3D space.
 
+## Features
 
+- Load and view OBJ models
+- Navigate the 3D space with controls based on Maya
+- Toggle wireframe overlay on models
+- Display a HUD for additional information
 
-W or 4 - toggle wire over models
-H - display HUD
+## Controls
 
-Alt + LMB - rotate camera
-Alt + MMB - Pan Camera
-Alt + RMB or Mouse scroll - zoom Camera
+- **W or 4**: Toggle wireframe overlay on models
+- **H**: Display HUD
+- **Alt + Left Mouse Button**: Rotate camera
+- **Alt + Middle Mouse Button**: Pan camera
+- **Alt + Right Mouse Button or Mouse Scroll**: Zoom camera
 
+## Installation
 
-![image](https://github.com/vinman75/Mesh-Inspector/assets/26931986/fdaa13c2-bfeb-4046-a281-aa5b907fef5c)
+1. Clone this repository
+2. Install the required Python packages using pip:
 
-This is very much a WIP.
+```sh
+pip install -r requirements.txt
+```
+
+3. Run the `main.py` script to start the application:
+
+```sh
+python main.py
+```
+
+## Screenshots
+![Screenshot](./screen-shot.png)
+## Status
+
+This project is currently a work in progress. More features and improvements are coming soon.
+
+## Contributing
+
+Contributions are welcome. Please feel free to submit a pull request or open an issue.
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
