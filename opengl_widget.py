@@ -12,6 +12,33 @@ from OpenGL.arrays import vbo
 import time
 
 
+
+vertex_shader_source = """
+#version 330 core
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+    gl_Position = projection * view * model * vec4(position, 1.0);
+}
+"""
+
+fragment_shader_source = """
+#version 330 core
+out vec4 FragColor;
+
+void main()
+{
+    FragColor = vec4(0.0, 1.0, 1.0, 1.0); // Fragment color
+}
+"""
+
+
 def check_gl_error():
     err = glGetError()
     if err != GL_NO_ERROR:
@@ -72,6 +99,27 @@ class OpenGLWidget(QOpenGLWidget):
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glLightfv(GL_LIGHT0, GL_POSITION, [0, 0, 1, 0])  # Simple directional light
+
+
+        # Shader Program Setup
+        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
+        glShaderSource(vertex_shader, vertex_shader_source)
+        glCompileShader(vertex_shader)
+        # Check for shader compile errors...
+
+        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
+        glShaderSource(fragment_shader, fragment_shader_source)
+        glCompileShader(fragment_shader)
+        # Check for shader compile errors...
+
+        self.shader_program = glCreateProgram()
+        glAttachShader(self.shader_program, vertex_shader)
+        glAttachShader(self.shader_program, fragment_shader)
+        glLinkProgram(self.shader_program)
+        # Check for linking errors...
+
+        glDeleteShader(vertex_shader)
+        glDeleteShader(fragment_shader)
 
 
     def set_wireframe_mode(self, enabled):
